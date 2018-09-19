@@ -231,14 +231,14 @@ def parse_opts():
     # acqusition args
     parser.add_argument('--init_train_size', type=int, default=101)
     parser.add_argument('--max_train_size', type=int, default=9500)
-    # randpm or var_ratio (random means no uncertainty)
-    #parser.add_argument('--acq_func', type=str, default='random')
+    # random or var_ratio (random means no uncertainty) TODO: implement var_ratio
+    parser.add_argument('--score_func', type=str, default='random')
     # e_optimal, a_optimal, d_optimal, inv_cond, MP, IPM, none (just uncertainty score)
     parser.add_argument('--optimality', type=str, default='d_optimal')
     parser.add_argument('--n_clust', type=int, default=101)
     parser.add_argument('--n_pool_clust', type=int, default=1)
-    parser.add_argument('--n_pool', type=int, default=101)
-    parser.add_argument('--alpha', type=float, default=1)               # alpha = 1 (just eig score)
+    parser.add_argument('--n_pool', type=int, default=404)
+    parser.add_argument('--alpha', type=float, default=0)               # alpha = 1 (just eig score)
     parser.add_argument('--alpha_decay', type=float, default=1)
 
 

@@ -1,13 +1,21 @@
 import torch
 from torch.autograd import Variable
-import cupy as cp
 import numpy as np
 import sklearn.cluster as cl
 
+
 def acqusition(pool_loader, train_loader, model, opts):
-    pool_features = extract_features(pool_loader, model)
-    train_features = extract_features(train_loader, model)
-    pooled_idx = e_optimal_clustered_acquisition(train_features, pool_features, np.random.rand(len(pool_features)), opts)
+    if opts.score_func == 'random':
+        score = np.random.rand(len(pool_loader.dataset))
+    else:
+        raise ValueError('Invalid score function for data selection!')
+
+    if opts.alpha == 0:  # only score func (no eig optimality)
+        pooled_idx = np.argsort(score)[-opts.n_pool:]
+    else:
+        pool_features = extract_features(pool_loader, model)
+        train_features = extract_features(train_loader, model)
+        pooled_idx = e_optimal_clustered_acquisition(train_features, pool_features, score, opts)
     return pooled_idx
 
 def extract_features(data_loader, model):
