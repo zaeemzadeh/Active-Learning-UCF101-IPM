@@ -13,10 +13,17 @@ def acqusition(pool_loader, train_loader, model, opts):
     if opts.alpha == 0:  # only score func (no eig optimality)
         pooled_idx = np.argsort(score)[-opts.n_pool:]
     else:
-        pool_features = extract_features(pool_loader, model)
         train_features = extract_features(train_loader, model)
+        pool_features = extract_features(pool_loader, model)
         pooled_idx = e_optimal_clustered_acquisition(train_features, pool_features, score, opts)
-    return pooled_idx
+
+    pooled_idx_set = set([pool_loader.dataset.indices[i] for i in pooled_idx])
+
+    train_loader.dataset.indices = list(set(train_loader.dataset.indices) | pooled_idx_set)
+    pool_loader.dataset.indices = list(set(pool_loader.dataset.indices) - pooled_idx_set)
+
+    return
+
 
 def extract_features(data_loader, model):
     model.eval()
@@ -68,6 +75,7 @@ def e_optimal_clustered_acquisition(f_train, f_pool, score, args):
 
 
 def feature_clust(f_pool, f_train, n_clust):
+    N_pool = len(f_pool)
     data_f_pool = f_pool
     data_f_train = f_train
 
@@ -80,8 +88,8 @@ def feature_clust(f_pool, f_train, n_clust):
     # clusters = cl.k_means(data_f_pool, 10)  #Kmeans Clustering
     # labels = clusters[1]
 
-    clust_pool = labels[0:-len(f_train)]
-    clust_train = labels[-len(f_train):]
+    clust_pool = labels[0:N_pool]
+    clust_train = labels[N_pool:]
 
     return clust_pool, clust_train
 

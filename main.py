@@ -84,10 +84,15 @@ if __name__ == '__main__':
         """
         labeled_data should be an instance of a class which inherits torch.utils.data.Dataset class and overrides two methods: __len__ so that len(training_data) returns the size of the training dataset and __getitem__ to support the indexing such that training_data[i] can be used to get the ith sample.
         """
-
         # split data into train and pool datasets
-        training_idx_set = set(np.random.permutation(range(len(labeled_data)))[:opt.init_train_size])
-        pool_idx_set = set(range(len(labeled_data))) - training_idx_set
+        if opt.pretrain_path:
+            # starting from empty training dataset, we will choose the training dataset using the prerained model
+            training_idx_set = set()
+            pool_idx_set = set(range(len(labeled_data)))
+        else:
+            # split data randomly
+            training_idx_set = set(np.random.permutation(range(len(labeled_data)))[:opt.init_train_size])
+            pool_idx_set = set(range(len(labeled_data))) - training_idx_set
 
         training_data = torch.utils.data.Subset(labeled_data, list(training_idx_set))
         pool_data = torch.utils.data.Subset(labeled_data, list(pool_idx_set))
@@ -105,6 +110,7 @@ if __name__ == '__main__':
             shuffle=True,
             num_workers=opt.n_threads,
             pin_memory=True)
+
         train_logger = Logger(
             os.path.join(opt.result_path, 'train.log'),
             ['epoch', 'loss', 'acc', 'lr'])
@@ -154,6 +160,11 @@ if __name__ == '__main__':
         if not opt.no_train:
             optimizer.load_state_dict(checkpoint['optimizer'])
 
+    # initial selection if necessary
+    if opt.pretrain_path and len(train_loader.dataset.indices) == 0:
+        print 'initial data selection'
+        acqusition(pool_loader, train_loader, model, opt)
+
     cycle_val_acc = []
     while len(training_data) <= opt.max_train_size:
         print('=========================================')
@@ -182,49 +193,7 @@ if __name__ == '__main__':
 
         # pool new labeled data
         print('acqusition')
-        pooled_idx = acqusition(pool_loader, train_loader, model, opt)
-        print('adding pooled data to the training dataset and creating loaders')
-        pooled_idx_set = set([pool_loader.dataset.indices[i] for i in pooled_idx])
-        training_idx_set = training_idx_set | pooled_idx_set
-        pool_idx_set -= pooled_idx_set
-
-        training_data = torch.utils.data.Subset(labeled_data, list(training_idx_set))
-        pool_data = torch.utils.data.Subset(labeled_data, list(pool_idx_set))
-
-        pool_loader = torch.utils.data.DataLoader(
-            pool_data,
-            batch_size=opt.batch_size,
-            shuffle=True,
-            num_workers=opt.n_threads,
-            pin_memory=True)
-
-        train_loader = torch.utils.data.DataLoader(
-            training_data,
-            batch_size=opt.batch_size,
-            shuffle=True,
-            num_workers=opt.n_threads,
-            pin_memory=True)
-
-
-        # print('Testing')
-        # if opt.test:
-        #     spatial_transform = Compose([
-        #         Scale(int(opt.sample_size / opt.scale_in_test)),
-        #         CornerCrop(opt.sample_size, opt.crop_position_in_test),
-        #         ToTensor(opt.norm_value), norm_method
-        #     ])
-        #     temporal_transform = LoopPadding(opt.sample_duration)
-        #     target_transform = VideoID()
-        #
-        #     test_data = get_test_set(opt, spatial_transform, temporal_transform,
-        #                              target_transform)
-        #     test_loader = torch.utils.data.DataLoader(
-        #         test_data,
-        #         batch_size=opt.batch_size,
-        #         shuffle=False,
-        #         num_workers=opt.n_threads,
-        #         pin_memory=True)
-        #     test.test(test_loader, model, opt, test_data.class_names)
+        acqusition(pool_loader, train_loader, model, opt)
 
         #reset model
         del model
