@@ -31,3 +31,11 @@ python utils/n_frames_ucf101_hmdb51.py jpg_video_directory
     test.json
 
 
+## Pre-trained models
+
+Pre-trained models are available [here](https://drive.google.com/drive/folders/1zvl89AgFAApbH0At-gMuZSeQB_LpNP-M?usp=sharing). 
+
+Info on pretraining available [here](https://github.com/kenshohara/3D-ResNets-PyTorch).
+
+
+
