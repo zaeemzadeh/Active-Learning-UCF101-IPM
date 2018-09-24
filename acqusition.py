@@ -5,13 +5,18 @@ import sklearn.cluster as cl
 
 
 def acqusition(pool_loader, train_loader, model, opts):
+    if len(train_loader.dataset.indices) == 0:
+        n_pool = opts.init_train_size
+    else:
+        n_pool = opts.n_pool
+
     if opts.score_func == 'random':
         score = np.random.rand(len(pool_loader.dataset))
     else:
         raise ValueError('Invalid score function for data selection!')
 
     if opts.alpha == 0:  # only score func (no eig optimality)
-        pooled_idx = np.argsort(score)[-opts.n_pool:]
+        pooled_idx = np.argsort(score)[-n_pool:]
     else:
         train_features = extract_features(train_loader, model)
         pool_features = extract_features(pool_loader, model)
