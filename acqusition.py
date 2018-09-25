@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 from torch.autograd import Variable
 import numpy as np
 import sklearn.cluster as cl
@@ -30,16 +31,23 @@ def acqusition(pool_loader, train_loader, model, opts):
     return
 
 
+
 def extract_features(data_loader, model):
-    model.eval()
+
+    feature_extractor = nn.Sequential(*list(model.module.children())[:-1])
+    feature_extractor = feature_extractor.cuda()
+    feature_extractor = nn.DataParallel(feature_extractor, device_ids=None)
+    feature_extractor.eval()
+
     features = []
     for i, (inputs, _) in enumerate(data_loader):
         with torch.no_grad():
             inputs = Variable(inputs)
-        outputs = model(inputs).data
+
+        batch_features = feature_extractor(inputs).data.squeeze()
+
         # TODO: convert to cupy more efficiently
-        #features.extend(cp.array(outputs.cpu().numpy()) )
-        features.extend(outputs.cpu().numpy())
+        features.extend(batch_features.cpu().numpy())
         if i % 100 == 0:
             print('Feature Extraction Batch: [{0}/{1}]'.format(i + 1, len(data_loader)))
     return features
