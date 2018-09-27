@@ -21,7 +21,7 @@ def acqusition(pool_loader, train_loader, model, opts):
     else:
         train_features = extract_features(train_loader, model)
         pool_features = extract_features(pool_loader, model)
-        pooled_idx = e_optimal_clustered_acquisition(train_features, pool_features, score, opts)
+        pooled_idx = e_optimal_clustered_acquisition(train_features, pool_features, score, opts, n_pool)
 
     pooled_idx_set = set([pool_loader.dataset.indices[i] for i in pooled_idx])
 
@@ -44,16 +44,17 @@ def extract_features(data_loader, model):
         with torch.no_grad():
             inputs = Variable(inputs)
 
-        batch_features = feature_extractor(inputs).data.squeeze()
+        batch_features = feature_extractor(inputs).data.view(inputs.size(0), -1)
+        # print batch_features.shape
 
-        # TODO: convert to cupy more efficiently
+        # TODO: convert to numpy more efficiently
         features.extend(batch_features.cpu().numpy())
         if i % 100 == 0:
             print('Feature Extraction Batch: [{0}/{1}]'.format(i + 1, len(data_loader)))
     return features
 
 
-def e_optimal_clustered_acquisition(f_train, f_pool, score, args):
+def e_optimal_clustered_acquisition(f_train, f_pool, score, args, n_pool):
     # clustering data in the feature space
     clust_pool, clust_train = feature_clust(f_pool, f_train, args.n_clust)
     pooled_idx = []
@@ -83,14 +84,14 @@ def e_optimal_clustered_acquisition(f_train, f_pool, score, args):
     # uncertainty selection on the selected samples
     pooled_score = [float(score[i]) for i in pooled_idx]
     sorted_idx = np.argsort(pooled_score)
-    sorted_idx = sorted_idx[-args.n_pool:]
+    sorted_idx = sorted_idx[-n_pool:]
     return [int(pooled_idx[i]) for i in sorted_idx]
 
 
 def feature_clust(f_pool, f_train, n_clust):
     N_pool = len(f_pool)
-    data_f_pool = f_pool
-    data_f_train = f_train
+    data_f_pool = list(f_pool)
+    data_f_train = list(f_train)
 
     data_f_pool.extend(data_f_train)
 
@@ -142,7 +143,7 @@ def e_optimal_add_sample(train, pool, score, pooled_idx, alpha, type):
 
         A = [np.ravel(pool[i]) for i in set_idx]
         A.extend(A_train)
-        A = [a/np.linalg.norm(a) for a in A]            # normalization
+        # A = [a/np.linalg.norm(a) for a in A]            # normalization
         A = np.asarray(A)
 
         eigs = np.linalg.eigvalsh(np.matmul(A, A.transpose()) + 0.5*np.eye(len(A)))
