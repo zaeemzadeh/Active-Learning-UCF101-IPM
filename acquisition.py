@@ -5,25 +5,86 @@ import numpy as np
 import sklearn.cluster as cl
 
 
-def acqusition(pool_loader, train_loader, model, opts):
-    if len(train_loader.dataset.indices) == 0:
+def acquisition(pool_loader, train_loader, model, opts):
+    # creating loaders without shuffles
+    pool_loader_noshuffle = torch.utils.data.DataLoader(
+        pool_loader.dataset,
+        batch_size=opts.batch_size,
+        shuffle=False,
+        num_workers=opts.n_threads,
+        pin_memory=True)
+
+    train_loader_noshuffle = torch.utils.data.DataLoader(
+        train_loader.dataset,
+        batch_size=opts.batch_size,
+        shuffle=False,
+        num_workers=opts.n_threads,
+        pin_memory=True)
+
+    # setting the number of the samples to be pooled
+    if len(train_loader.dataset.indices) == 0: # initial acquisition
+        print 'initial selection: n_pool = ', opts.init_train_size
         n_pool = opts.init_train_size
     else:
+        print 'n_pool = ', opts.n_pool
         n_pool = opts.n_pool
 
+    # calculating the score function (this is different from optimality) can be random or some uncertainty measure
     if opts.score_func == 'random':
-        score = np.random.rand(len(pool_loader.dataset))
+        score = np.random.rand(len(pool_loader_noshuffle.dataset))
     else:
         raise ValueError('Invalid score function for data selection!')
 
-    if opts.alpha == 0:  # only score func (no eig optimality)
+    if opts.alpha == 0 or opts.optimality == 'none':
+        opts.alpha = 0
+        opts.optimality = 'none'
+
+    # extracting labels and features (if necessary)
+    if opts.clustering == 'labels' and opts.optimality == 'none':
+        print 'extracting labels of the training dataset'
+        train_features, train_labels = extract_features(train_loader_noshuffle, model, label_only=True)
+        print 'extracting labels of the pooling dataset'
+        pool_features, pool_labels = extract_features(pool_loader_noshuffle, model, label_only=True)
+    elif not (opts.clustering == 'none' and opts.optimality == 'none'):
+        print 'extracting features of the training dataset'
+        train_features, train_labels = extract_features(train_loader_noshuffle, model, label_only=False)
+        print 'extracting features of the pooling dataset'
+        pool_features, pool_labels = extract_features(pool_loader_noshuffle, model, label_only=False)
+
+    # clustering and selection
+    print 'score function: ', opts.score_func
+    print 'clustering method: ', opts.clustering
+    print 'optimality function: ', opts.optimality
+    if opts.optimality == 'none' and opts.clustering == 'none':  # only score func (no eig optimality or clustering)
+        print 'selection based on only the score func (no eig optimality or clustering)'
         pooled_idx = np.argsort(score)[-n_pool:]
     else:
-        train_features = extract_features(train_loader, model)
-        pool_features = extract_features(pool_loader, model)
-        pooled_idx = e_optimal_clustered_acquisition(train_features, pool_features, score, opts, n_pool)
+        # clustering
+        if opts.clustering == 'none' or opts.n_clust == 1:
+            print 'No clustering.'
+            clust_pool = np.zeros(len(pool_loader_noshuffle.dataset))
+            clust_train = np.zeros(len(train_loader_noshuffle.dataset))
+            opts.n_clust = 1
+            opts.n_pool_clust = n_pool
+            print 'n_clust overwritten to', opts.n_clust, 'n_pool_clust overwritten to ', opts.n_pool_clust
 
-    pooled_idx_set = set([pool_loader.dataset.indices[i] for i in pooled_idx])
+        elif opts.clustering == 'labels':
+            print 'Using labels as clusters.'
+            clust_pool = np.array(pool_labels)
+            clust_train = np.array(train_labels)
+            opts.n_clust = len(set(pool_labels) | set(train_labels))
+            opts.n_pool_clust = int(n_pool / opts.n_clust)
+            print 'n_clust overwritten to', opts.n_clust, 'n_pool_clust overwritten to ', opts.n_pool_clust
+
+        else:
+            # clustering data in the feature space
+            print 'Unsupervised clustering'
+            clust_pool, clust_train = feature_clust(pool_features, train_features, opts.n_clust)
+
+        # selection on clusters
+        pooled_idx = clustered_acquisition(train_features, clust_train, pool_features, clust_pool, score, opts, n_pool)
+
+    pooled_idx_set = set([pool_loader_noshuffle.dataset.indices[i] for i in pooled_idx])
 
     train_loader.dataset.indices = list(set(train_loader.dataset.indices) | pooled_idx_set)
     pool_loader.dataset.indices = list(set(pool_loader.dataset.indices) - pooled_idx_set)
@@ -32,45 +93,47 @@ def acqusition(pool_loader, train_loader, model, opts):
 
 
 
-def extract_features(data_loader, model):
-
+def extract_features(data_loader, model, label_only=False):
     feature_extractor = nn.Sequential(*list(model.module.children())[:-1])
     feature_extractor = feature_extractor.cuda()
     feature_extractor = nn.DataParallel(feature_extractor, device_ids=None)
     feature_extractor.eval()
 
     features = []
-    for i, (inputs, _) in enumerate(data_loader):
-        with torch.no_grad():
-            inputs = Variable(inputs)
-
-        batch_features = feature_extractor(inputs).data.view(inputs.size(0), -1)
-        # print batch_features.shape
-
-        # TODO: convert to numpy more efficiently
-        features.extend(batch_features.cpu().numpy())
+    labels = []
+    for i, (inputs, l) in enumerate(data_loader):
+        labels.extend(l.data.cpu().numpy())
+        if not label_only:
+            with torch.no_grad():
+                inputs = Variable(inputs)
+            batch_features = feature_extractor(inputs).data.view(inputs.size(0), -1)
+            # print batch_features.shape
+            # TODO: convert to numpy more efficiently
+            features.extend(batch_features.cpu().numpy())
         if i % 100 == 0:
-            print('Feature Extraction Batch: [{0}/{1}]'.format(i + 1, len(data_loader)))
-    return features
+            print('[{0}/{1}]'.format(i + 1, len(data_loader)))
+    return features, labels
 
 
-def e_optimal_clustered_acquisition(f_train, f_pool, score, args, n_pool):
-    # clustering data in the feature space
-    clust_pool, clust_train = feature_clust(f_pool, f_train, args.n_clust)
+def clustered_acquisition(f_train, clust_train, f_pool, clust_pool, score, args, n_pool):
     pooled_idx = []
     # optimal selction in each cluster
     for c in range(args.n_clust):
         idx_pool_c  = np.where(clust_pool == c)[0]
         idx_train_c = np.where(clust_train == c)[0]
 
-        f_pool_c = [f_pool[i][0] for i in idx_pool_c]
-        f_train_c = [f_train[i][0] for i in idx_train_c]
-
         score_c = np.asarray([float(score[i]) for i in idx_pool_c])
 
         #n_pool_clust = np.minimum(n_pool, len(score_c))
         n_pool_clust = np.minimum(args.n_pool_clust, len(score_c))
-        pooled_idx_c = e_optimal_acquisition(f_train_c, f_pool_c, score_c, n_pool_clust, args.alpha, type=args.optimality)
+
+        if args.optimality == 'none':
+            # print 'alpha = 0 or optimality == none, selection based on just the score function: ', args.score_func
+            pooled_idx_c = np.argsort(score_c)[-n_pool_clust:]
+        else:
+            f_pool_c = [f_pool[i][0] for i in idx_pool_c]
+            f_train_c = [f_train[i][0] for i in idx_train_c]
+            pooled_idx_c = optimal_acquisition(f_train_c, f_pool_c, score_c, n_pool_clust, args.alpha, type=args.optimality)
 
         pooled_idx.extend([int(idx_pool_c[i]) for i in pooled_idx_c])
 
@@ -107,7 +170,7 @@ def feature_clust(f_pool, f_train, n_clust):
 
     return clust_pool, clust_train
 
-def e_optimal_acquisition(train, pool, score, n_pool, alpha, type):
+def optimal_acquisition(train, pool, score, n_pool, alpha, type):
     #pooled_idx = [int(cp.argmax(score))]
     pooled_idx = []
     while len(pooled_idx) < n_pool:
@@ -116,13 +179,13 @@ def e_optimal_acquisition(train, pool, score, n_pool, alpha, type):
         # elif type == 'MP':
         #     new_idx = MP_add_sample(train, pool, pooled_idx)
         else:
-            new_idx = e_optimal_add_sample(train, pool, score, pooled_idx, alpha, type)
+            new_idx = x_optimal_add_sample(train, pool, score, pooled_idx, alpha, type)
 
         pooled_idx.append(int(new_idx))
     return pooled_idx
 
 
-def e_optimal_add_sample(train, pool, score, pooled_idx, alpha, type):
+def x_optimal_add_sample(train, pool, score, pooled_idx, alpha, type):
     candidate_samples = range(0, len(pool))         # all samples
     # candidate_samples = cp.argsort(score)[-100:]     # best samples based on score
     A_train = [np.ravel(t) for t in train]

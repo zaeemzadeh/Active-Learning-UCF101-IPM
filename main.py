@@ -20,7 +20,7 @@ from dataset import get_training_set, get_validation_set, get_test_set
 from utils import Logger
 from train import train_epoch
 from validation import val_epoch
-from acqusition import acqusition
+from acquisition import acquisition, extract_features
 import test
 
 if __name__ == '__main__':
@@ -85,14 +85,37 @@ if __name__ == '__main__':
         labeled_data should be an instance of a class which inherits torch.utils.data.Dataset class and overrides two methods: __len__ so that len(training_data) returns the size of the training dataset and __getitem__ to support the indexing such that training_data[i] can be used to get the ith sample.
         """
         # split data into train and pool datasets
-        if opt.pretrain_path:
-            # starting from empty training dataset, we will choose the training dataset using the prerained model
+        if opt.init_selection == 'same':
+            # starting from empty training dataset, we will choose the training dataset using
+            # the same selection method as the active leaning cycles
             training_idx_set = set()
             pool_idx_set = set(range(len(labeled_data)))
-        else:
+        elif opt.init_selection == 'random':
             # split data randomly
+            print 'initial data selection: random'
             training_idx_set = set(np.random.permutation(range(len(labeled_data)))[:opt.init_train_size])
             pool_idx_set = set(range(len(labeled_data))) - training_idx_set
+        elif opt.init_selection == 'uniform_random':
+            # select balanced dataset randomly
+            print 'initial data selection: uniform_random'
+            labeled_data_loader = torch.utils.data.DataLoader(
+                labeled_data,
+                batch_size=256,
+                shuffle=False,
+                num_workers=opt.n_threads,
+                pin_memory=True)
+            _, labels = extract_features(labeled_data_loader, model, label_only=True)
+            n_classes = len(labeled_data.class_names)
+            samp_per_class = np.diff(np.linspace(0, opt.init_train_size, n_classes + 1, dtype=int))
+
+            training_idx_set = set()
+            for c in range(n_classes):
+                idx_c = np.where(np.array(labels) == c)[0]
+                training_idx_set = training_idx_set | set(np.random.permutation(idx_c)[:samp_per_class[c]])
+
+            pool_idx_set = set(range(len(labeled_data))) - training_idx_set
+        else:
+            raise ValueError('Invalid method for initial data selection!')
 
         training_data = torch.utils.data.Subset(labeled_data, list(training_idx_set))
         pool_data = torch.utils.data.Subset(labeled_data, list(pool_idx_set))
@@ -161,13 +184,15 @@ if __name__ == '__main__':
             optimizer.load_state_dict(checkpoint['optimizer'])
 
     # initial selection if necessary
-    if opt.pretrain_path and len(train_loader.dataset.indices) == 0:
-        print 'initial data selection'
-        acqusition(pool_loader, train_loader, model, opt)
+    if opt.init_selection == 'same':
+        print 'initial data selection: same'
+        acquisition(pool_loader, train_loader, model, opt)
 
     cycle_val_acc = []
     while len(training_data) <= opt.max_train_size:
+        labels = [train_loader.dataset[i][1] for i in range(len(train_loader.dataset))]
         print('=========================================')
+        print 'number of samples from each class: ', set([len(np.where(np.array(labels) == i)[0]) for i in range(101)])
         print 'train dataset size: ', len(training_data)
         print 'pool  dataset size: ', len(pool_data)
         print 'max train dataset size: ', opt.max_train_size
@@ -192,8 +217,9 @@ if __name__ == '__main__':
         print cycle_val_acc
 
         # pool new labeled data
+        print('-----------------------------------------')
         print('acqusition')
-        acqusition(pool_loader, train_loader, model, opt)
+        acquisition(pool_loader, train_loader, model, opt)
 
         #reset model
         del model
