@@ -104,7 +104,7 @@ if __name__ == '__main__':
                 shuffle=False,
                 num_workers=opt.n_threads,
                 pin_memory=True)
-            _, labels = extract_features(labeled_data_loader, model, label_only=True)
+            _, labels, _ = extract_features(labeled_data_loader, model, label_only=True)
             n_classes = len(labeled_data.class_names)
             samp_per_class = np.diff(np.linspace(0, opt.init_train_size, n_classes + 1, dtype=int))
 

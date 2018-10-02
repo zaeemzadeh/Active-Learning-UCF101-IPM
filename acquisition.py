@@ -29,27 +29,32 @@ def acquisition(pool_loader, train_loader, model, opts):
         print 'n_pool = ', opts.n_pool
         n_pool = opts.n_pool
 
-    # calculating the score function (this is different from optimality) can be random or some uncertainty measure
-    if opts.score_func == 'random':
-        score = np.random.rand(len(pool_loader_noshuffle.dataset))
-    else:
-        raise ValueError('Invalid score function for data selection!')
-
     if opts.alpha == 0 or opts.optimality == 'none':
         opts.alpha = 0
         opts.optimality = 'none'
 
     # extracting labels and features (if necessary)
-    if opts.clustering == 'labels' and opts.optimality == 'none':
-        print 'extracting labels of the training dataset'
-        train_features, train_labels = extract_features(train_loader_noshuffle, model, label_only=True)
-        print 'extracting labels of the pooling dataset'
-        pool_features, pool_labels = extract_features(pool_loader_noshuffle, model, label_only=True)
-    elif not (opts.clustering == 'none' and opts.optimality == 'none'):
+    need_labels = False
+    need_features = False
+    if opts.clustering == 'labels':
+        need_labels = True
+    if opts.clustering == 'unsupervised' or opts.optimality != 'none' or opts.score_func != 'random':
+        need_features = True
+
+    if need_labels or need_features:
+        label_only = (need_labels and not need_features)
         print 'extracting features of the training dataset'
-        train_features, train_labels = extract_features(train_loader_noshuffle, model, label_only=False)
+        train_features, train_labels, train_outputs = extract_features(train_loader_noshuffle, model, label_only=label_only)
         print 'extracting features of the pooling dataset'
-        pool_features, pool_labels = extract_features(pool_loader_noshuffle, model, label_only=False)
+        pool_features, pool_labels, pool_outputs = extract_features(pool_loader_noshuffle, model, label_only=label_only)
+
+    # calculating the score function (this is different from optimality) can be random or some uncertainty measure
+    if opts.score_func == 'random':
+        score = np.random.rand(len(pool_loader_noshuffle.dataset))
+    elif opts.score_func == 'var_ratio':
+        score = [1 - np.max(p) for p in pool_outputs]
+    else:
+        raise ValueError('Invalid score function for data selection!')
 
     # clustering and selection
     print 'score function: ', opts.score_func
@@ -92,27 +97,39 @@ def acquisition(pool_loader, train_loader, model, opts):
     return
 
 
-
 def extract_features(data_loader, model, label_only=False):
-    feature_extractor = nn.Sequential(*list(model.module.children())[:-1])
-    feature_extractor = feature_extractor.cuda()
-    feature_extractor = nn.DataParallel(feature_extractor, device_ids=None)
-    feature_extractor.eval()
+    if not label_only:
+        feature_extractor = nn.Sequential(*list(model.module.children())[:-1])
+        feature_extractor = feature_extractor.cuda()
+        feature_extractor = nn.DataParallel(feature_extractor, device_ids=None)
+        feature_extractor.eval()
+
+        fc_layer = nn.Sequential(list(model.module.children())[-1])
+        fc_layer = fc_layer.cuda()
+        fc_layer = nn.DataParallel(fc_layer, device_ids=None)
+        fc_layer.eval()
+
+        softmax = nn.Softmax(dim=1)
 
     features = []
     labels = []
+    outputs = []
     for i, (inputs, l) in enumerate(data_loader):
         labels.extend(l.data.cpu().numpy())
+
         if not label_only:
             with torch.no_grad():
                 inputs = Variable(inputs)
             batch_features = feature_extractor(inputs).data.view(inputs.size(0), -1)
-            # print batch_features.shape
+            batch_outputs = softmax(fc_layer(batch_features))
             # TODO: convert to numpy more efficiently
             features.extend(batch_features.cpu().numpy())
+            outputs.extend(batch_outputs.data.view(inputs.size(0), -1).cpu().numpy())
+
         if i % 100 == 0:
             print('[{0}/{1}]'.format(i + 1, len(data_loader)))
-    return features, labels
+
+    return features, labels, outputs
 
 
 def clustered_acquisition(f_train, clust_train, f_pool, clust_pool, score, args, n_pool):
@@ -271,6 +288,7 @@ def IPM_add_sample(train, pool, pooled_idx):
             continue
 
         correlation[m] = np.abs(np.inner(A_mat[:, m], first_eig_vec))
+        correlation[m] /= np.linalg.norm(np.squeeze(A_mat[:, m]))
 
     # finding the best sample
     objective = correlation
