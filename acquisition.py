@@ -273,7 +273,7 @@ def IPM_add_sample(train, pool, pooled_idx):
     if len(A_s_mat) == 0:
         A_proj = A_mat
     else:
-        Proj = np.matmul(A_s_mat, np.linalg.pinv(A_s_mat))
+        Proj = np.matmul(A_s_mat, np.linalg.pinv(A_s_mat,rcond=0.1))
         A_proj = A_mat - np.matmul(Proj, A_mat)
 
     u, _, _ = np.linalg.svd(A_proj, full_matrices=False)
@@ -301,3 +301,10 @@ def IPM_add_sample(train, pool, pooled_idx):
         i += 1
 
     return sorted_idx[i]
+
+
+# def regularized_pinv(M, alpha=0):
+#     if alpha == 0:
+#         return np.linalg.pinv(M)
+#     else:
+#         pinv =() M.transpose() M
