@@ -148,8 +148,8 @@ def clustered_acquisition(f_train, clust_train, f_pool, clust_pool, score, args,
             # print 'alpha = 0 or optimality == none, selection based on just the score function: ', args.score_func
             pooled_idx_c = np.argsort(score_c)[-n_pool_clust:]
         else:
-            f_pool_c = [f_pool[i][0] for i in idx_pool_c]
-            f_train_c = [f_train[i][0] for i in idx_train_c]
+            f_pool_c = [f_pool[i] for i in idx_pool_c]
+            f_train_c = [f_train[i] for i in idx_train_c]
             pooled_idx_c = optimal_acquisition(f_train_c, f_pool_c, score_c, n_pool_clust, args.alpha, type=args.optimality)
 
         pooled_idx.extend([int(idx_pool_c[i]) for i in pooled_idx_c])
@@ -273,11 +273,11 @@ def IPM_add_sample(train, pool, pooled_idx):
     if len(A_s_mat) == 0:
         A_proj = A_mat
     else:
-        Proj = np.matmul(A_s_mat, np.linalg.pinv(A_s_mat,rcond=0.1))
+        Proj = np.matmul(A_s_mat, np.linalg.pinv(A_s_mat))
         A_proj = A_mat - np.matmul(Proj, A_mat)
 
     u, _, _ = np.linalg.svd(A_proj, full_matrices=False)
-    first_eig_vec = u[0, :]
+    first_eig_vec = u[:, 0]
     # calculating MP score
     #print cp.linalg.norm(Res)
     correlation = np.zeros(len(pool))
