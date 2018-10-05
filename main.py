@@ -190,9 +190,9 @@ if __name__ == '__main__':
 
     cycle_val_acc = []
     while len(training_data) <= opt.max_train_size:
-        labels = [train_loader.dataset[i][1] for i in range(len(train_loader.dataset))]
+        #labels = [train_loader.dataset[i][1] for i in range(len(train_loader.dataset))]
         print('=========================================')
-        print 'number of samples from each class: ', set([len(np.where(np.array(labels) == i)[0]) for i in range(101)])
+        #print 'number of samples from each class: ', set([len(np.where(np.array(labels) == i)[0]) for i in range(101)])
         print 'train dataset size: ', len(training_data)
         print 'pool  dataset size: ', len(pool_data)
         print 'max train dataset size: ', opt.max_train_size
@@ -234,3 +234,6 @@ if __name__ == '__main__':
             nesterov=opt.nesterov)
         scheduler = lr_scheduler.ReduceLROnPlateau(
             optimizer, 'min', patience=opt.lr_patience)
+
+        # alpha decay
+        opt.alpha *= opt.alpha_decay
