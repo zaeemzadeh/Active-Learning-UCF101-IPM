@@ -192,7 +192,7 @@ def optimal_acquisition(train, pool, score, n_pool, alpha, type):
     pooled_idx = []
     while len(pooled_idx) < n_pool:
         if type == 'IPM':
-            new_idx = IPM_add_sample(train, pool, pooled_idx)
+            new_idx = IPM_add_sample(train, pool, score, alpha, pooled_idx)
         # elif type == 'MP':
         #     new_idx = MP_add_sample(train, pool, pooled_idx)
         else:
@@ -253,7 +253,7 @@ def x_optimal_add_sample(train, pool, score, pooled_idx, alpha, type):
     return sorted_idx[-i]
 
 
-def IPM_add_sample(train, pool, pooled_idx):
+def IPM_add_sample(train, pool, score, alpha, pooled_idx):
     candidate_samples = range(0, len(pool))         # all samples
     # candidate_samples = cp.argsort(score)[-100:]     # best samples based on score
     set_idx = [int(idx) for idx in pooled_idx]
@@ -291,7 +291,8 @@ def IPM_add_sample(train, pool, pooled_idx):
         correlation[m] /= np.linalg.norm(np.squeeze(A_mat[:, m]))
 
     # finding the best sample
-    objective = correlation
+    #objective = correlation
+    objective = (1 - alpha) * score + alpha * correlation
     sorted_idx = np.argsort(objective)
     sorted_idx = np.flipud(sorted_idx)   # sort in decsending order
 
