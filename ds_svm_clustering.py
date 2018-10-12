@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.linalg import norm
+from scipy.linalg import sqrtm
 
 from sklearn.metrics import pairwise_distances, adjusted_mutual_info_score
 from sklearn.datasets import make_classification
@@ -7,13 +8,24 @@ from sklearn.cluster import SpectralClustering
 import sklearn.svm as svm
 import matplotlib.pyplot as plt
 
+def inv_conv(X):
+    import torch
+    Xt = torch.from_numpy(X).type(torch.double)
+    Xt -= torch.mean(Xt, dim=0, keepdim=True)
 
-def compute_kernel(X, Y=None, metric='mahalanobis'):
+    fact = 1.0 / (Xt.size(0) - 1)
+    Cov = fact * Xt.t().matmul(Xt).squeeze()
+    Cov_inv = torch.inverse(Cov)
+    return Cov_inv.data.numpy().astype(np.float_)
+
+def compute_kernel(X, Y=None, metric='euclidean'):
+    # print 'Computing Kernel...',
     D = pairwise_distances(X, Y, metric=metric)
     sigma = np.median(D)
     D /= sigma
     D == D**2
     S = np.exp(-D)
+    # print 'Done!'
     return S
 
 
@@ -40,7 +52,7 @@ def dominant_set(A, x=None, epsilon=1.0e-4):
     return x
 
 
-def ds_svm_clustering(X, n_clust=2, eta=2, ds_eps=2e-3, plot=False, metric='mahalanobis'):
+def ds_svm_clustering(X, n_clust=2, eta=2, ds_eps=2e-3, plot=False, metric='euclidean'):
     """Dominant set + SVM Clustering:
     Alg 1 in Unsupervised Action Discovery and Localization in Videos
     http://crcv.ucf.edu/papers/iccv17/Soomro_ICCV17.pdf
@@ -53,8 +65,12 @@ def ds_svm_clustering(X, n_clust=2, eta=2, ds_eps=2e-3, plot=False, metric='maha
 
         plt.title('Dataset')
 
+    # normalizing data
+    VI = inv_conv(X)
+    X = np.matmul(sqrtm(VI), (X - np.mean(X, axis=0, keepdims=True)).transpose()).transpose()
     S = compute_kernel(X, metric=metric)
 
+    print 'SpectralClustering'
     spectral = SpectralClustering(n_clusters=n_clust, eigen_solver='arpack', affinity='precomputed')
     spectral.fit(S)
     labels = spectral.labels_
@@ -67,6 +83,7 @@ def ds_svm_clustering(X, n_clust=2, eta=2, ds_eps=2e-3, plot=False, metric='maha
         plt.title('Spectral Clustering')
 
     # finding dominant sets
+    print 'finding dominant sets'
     for l in np.unique(labels):
         idx_l = np.where(labels == l)
         X_l = X[labels == l, :]
@@ -89,9 +106,10 @@ def ds_svm_clustering(X, n_clust=2, eta=2, ds_eps=2e-3, plot=False, metric='maha
 
     dominant_set_idx = np.where(labels != -1)[0].tolist()
     non_dominant_set_idx = np.where(labels == -1)[0].tolist()
+    print 'SVM loop'
     while len(non_dominant_set_idx) > 0:
         remove_idx = []
-
+        print len(non_dominant_set_idx), len(dominant_set_idx), len(non_dominant_set_idx) + len(dominant_set_idx)
         for l in np.unique(labels):
 
             if l == -1:
@@ -140,16 +158,16 @@ def ds_svm_clustering(X, n_clust=2, eta=2, ds_eps=2e-3, plot=False, metric='maha
 if __name__ == '__main__':
     np.random.seed(6)
 
-    nclust = 3
-    N = 1000    # number of samples
-    d = 2     # dimension of samples (number of features)
+    nclust =101
+    N = 9537    # number of samples
+    d = 512     # dimension of samples (number of features)
     weights = np.ones(nclust)
     weights /= sum(weights)
 
     X, y = make_classification(weights=weights.tolist(), n_classes=nclust, n_samples=N, n_features=d,
                                n_redundant=0, class_sep=1, n_clusters_per_class=1, n_informative=d)
 
-    dist_metric = 'mahalanobis'  #cosine, euclidean, l1, l2, manhattan, mahalanobis
-    labels = ds_svm_clustering(X, n_clust=nclust, plot=True, metric=dist_metric)
+    dist_metric = 'euclidean'  #cosine, euclidean, l1, l2, manhattan, mahalanobis
+    labels = ds_svm_clustering(X, n_clust=nclust, plot=False, metric=dist_metric)
     print 'Adjusted Mutual Information Score: ', adjusted_mutual_info_score(y, labels)
     plt.show()
