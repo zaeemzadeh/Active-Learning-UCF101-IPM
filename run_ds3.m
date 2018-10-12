@@ -25,7 +25,7 @@
 %--------------------------------------------------------------------------
 function sInd = run_ds3(X, alpha)
     X = X';
-    addpath '/home/alireza/Downloads/DS3_v1.1/DS3_v1.0'
+    addpath 'DS3_v1.0'
 
     dissimilarityType = 'Euc'; % type of pairwise dissimilarities
     p = inf; % norm used for L1/Lp optimization in DS3
