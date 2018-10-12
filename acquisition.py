@@ -4,6 +4,9 @@ from torch.autograd import Variable
 import numpy as np
 import sklearn.cluster as cl
 
+import matlab
+import matlab.engine
+
 
 def acquisition(pool_loader, train_loader, model, opts):
     # creating loaders without shuffles
@@ -135,6 +138,7 @@ def extract_features(data_loader, model, label_only=False):
 def clustered_acquisition(f_train, clust_train, f_pool, clust_pool, score, args, n_pool):
     pooled_idx = []
     # optimal selction in each cluster
+    print 'Runnung clustered_acquisition with optimality function: ', args.optimality
     for c in range(args.n_clust):
         idx_pool_c  = np.where(clust_pool == c)[0]
         idx_train_c = np.where(clust_train == c)[0]
@@ -147,6 +151,10 @@ def clustered_acquisition(f_train, clust_train, f_pool, clust_pool, score, args,
         if args.optimality == 'none':
             # print 'alpha = 0 or optimality == none, selection based on just the score function: ', args.score_func
             pooled_idx_c = np.argsort(score_c)[-n_pool_clust:]
+        elif args.optimality == 'ds3':
+            eng = matlab.engine.start_matlab()
+            f_pool_c = [f_pool[i] for i in idx_pool_c]
+            pooled_idx_c = ds3_selection(eng, f_pool_c, n_pool_clust)
         else:
             f_pool_c = [f_pool[i] for i in idx_pool_c]
             f_train_c = [f_train[i] for i in idx_train_c]
@@ -304,8 +312,20 @@ def IPM_add_sample(train, pool, score, alpha, pooled_idx):
     return sorted_idx[i]
 
 
+def ds3_selection(eng, data, n_samples):
+    # Dissimilarity-Based Sparse Subset Selection
+    # https://ieeexplore.ieee.org/abstract/document/7364258
+    data_mat = matlab.double([data[i].tolist() for i in range(len(data))])
+    alpha = matlab.double([1])
+    s = eng.run_ds3(data_mat, alpha)
+    s = [int(s[0][i] - 1) for i in range(len(s[0]))]        # matlab has 1-based indexing, therefore - 1
+
+    return s[:n_samples]
+
+
 # def regularized_pinv(M, alpha=0):
 #     if alpha == 0:
 #         return np.linalg.pinv(M)
 #     else:
 #         pinv =() M.transpose() M
+

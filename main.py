@@ -21,6 +21,7 @@ from utils import Logger
 from train import train_epoch
 from validation import val_epoch
 from acquisition import acquisition, extract_features
+from eval_ucf101 import UCFclassification
 import test
 
 if __name__ == '__main__':
@@ -189,6 +190,7 @@ if __name__ == '__main__':
         acquisition(pool_loader, train_loader, model, opt)
 
     cycle_val_acc = []
+    cycle_test_acc = []
     while len(training_data) <= opt.max_train_size:
         #labels = [train_loader.dataset[i][1] for i in range(len(train_loader.dataset))]
         print('=========================================')
@@ -216,7 +218,35 @@ if __name__ == '__main__':
         cycle_val_acc.append(max_val_acc)
         print cycle_val_acc
 
+        if opt.test:
+            spatial_transform = Compose([
+                Scale(int(opt.sample_size / opt.scale_in_test)),
+                CornerCrop(opt.sample_size, opt.crop_position_in_test),
+                ToTensor(opt.norm_value), norm_method
+            ])
+            temporal_transform = LoopPadding(opt.sample_duration)
+            target_transform = VideoID()
+
+            test_data = get_test_set(opt, spatial_transform, temporal_transform,
+                                     target_transform)
+            test_loader = torch.utils.data.DataLoader(
+                test_data,
+                batch_size=opt.batch_size,
+                shuffle=False,
+                num_workers=opt.n_threads,
+                pin_memory=True)
+            test.test(test_loader, model, opt, test_data.class_names)
+
+            ucf101 = UCFclassification(opt.annotation_path,
+                                       os.path.join(opt.result_path, '{}.json'.format(opt.test_subset)),
+                                       subset='validation', verbose=True, top_k=1)
+            ucf101.evaluate()
+            cycle_test_acc.append(ucf101.hit_at_k)
+            print cycle_test_acc
+
         # pool new labeled data
+        if len(training_data) + opt.n_pool > opt.max_train_size:
+            break
         print('-----------------------------------------')
         print('acqusition')
         acquisition(pool_loader, train_loader, model, opt)
