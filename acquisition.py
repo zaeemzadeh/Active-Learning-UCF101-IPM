@@ -186,7 +186,7 @@ def feature_clust(f_pool, f_train, n_clust):
     data_f_pool.extend(data_f_train)
 
     # ds-svm cluctering
-    labels = ds_svm_clustering(data_f_pool, n_clust=n_clust, eta=2, ds_eps=2e-3, plot=False, metric='mahalanobis')
+    labels = ds_svm_clustering(data_f_pool, n_clust=n_clust, eta=4, ds_ratio=0.25, plot=False, metric='euclidean')
 
     # spectral clustering
     # spectral = cl.SpectralClustering(n_clusters=n_clust, eigen_solver='arpack', affinity="nearest_neighbors")
