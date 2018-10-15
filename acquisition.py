@@ -43,7 +43,7 @@ def acquisition(pool_loader, train_loader, model, opts):
     need_features = False
     if opts.clustering == 'labels':
         need_labels = True
-    if opts.clustering == 'unsupervised' or opts.optimality != 'none' or opts.score_func != 'random':
+    if opts.clustering.startswith('unsupervised') or opts.optimality != 'none' or opts.score_func != 'random':
         need_features = True
 
     if need_labels or need_features:
@@ -178,7 +178,7 @@ def clustered_acquisition(f_train, clust_train, f_pool, clust_pool, score, args,
     return [int(pooled_idx[i]) for i in sorted_idx]
 
 
-def feature_clust(f_pool, f_train, n_clust):
+def feature_clust(f_pool, f_train, n_clust, method='unsupervised-spectral'):
     N_pool = len(f_pool)
     data_f_pool = list(f_pool)
     data_f_train = list(f_train)
@@ -186,16 +186,19 @@ def feature_clust(f_pool, f_train, n_clust):
     data_f_pool.extend(data_f_train)
 
     # ds-svm cluctering
-    labels = ds_svm_clustering(data_f_pool, n_clust=n_clust, eta=4, ds_ratio=0.25, plot=False, metric='euclidean')
-
+    if method == 'unsupervised-ds-svm':
+        labels = ds_svm_clustering(data_f_pool, n_clust=n_clust, eta=4, ds_ratio=0.25, plot=False, metric='euclidean')
+    elif method == 'unsupervised-spectral':
     # spectral clustering
-    # spectral = cl.SpectralClustering(n_clusters=n_clust, eigen_solver='arpack', affinity="nearest_neighbors")
-    # spectral.fit(data_f_pool)
-    # labels = spectral.labels_
-
+        spectral = cl.SpectralClustering(n_clusters=n_clust, eigen_solver='arpack', affinity="nearest_neighbors")
+        spectral.fit(data_f_pool)
+        labels = spectral.labels_
+    elif method == 'unsupervised-kmeans':
     # kmeans
-    # clusters = cl.k_means(data_f_pool, 10)  #Kmeans Clustering
-    # labels = clusters[1]
+        clusters = cl.k_means(data_f_pool, 10)  #Kmeans Clustering
+        labels = clusters[1]
+    else:
+        raise ValueError('Invalid clustering method!')
 
     clust_pool = labels[0:N_pool]
     clust_train = labels[N_pool:]
