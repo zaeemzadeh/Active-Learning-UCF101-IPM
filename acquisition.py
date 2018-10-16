@@ -3,6 +3,7 @@ from torch import nn
 from torch.autograd import Variable
 import numpy as np
 import sklearn.cluster as cl
+import random
 
 import matlab
 import matlab.engine
@@ -10,7 +11,7 @@ import matlab.engine
 from ds_svm_clustering import ds_svm_clustering
 
 
-def acquisition(pool_loader, train_loader, model, opts):
+def acquisition(pool_loader, train_loader, model, opts, clusters):
     # creating loaders without shuffles
     pool_loader_noshuffle = torch.utils.data.DataLoader(
         pool_loader.dataset,
@@ -48,9 +49,9 @@ def acquisition(pool_loader, train_loader, model, opts):
 
     if need_labels or need_features:
         label_only = (need_labels and not need_features)
-        print 'extracting features of the training dataset'
+        print 'extracting features of the training dataset. label_only=', label_only
         train_features, train_labels, train_outputs = extract_features(train_loader_noshuffle, model, label_only=label_only)
-        print 'extracting features of the pooling dataset'
+        print 'extracting features of the pooling dataset. label_only=', label_only
         pool_features, pool_labels, pool_outputs = extract_features(pool_loader_noshuffle, model, label_only=label_only)
 
     # calculating the score function (this is different from optimality) can be random or some uncertainty measure
@@ -81,6 +82,7 @@ def acquisition(pool_loader, train_loader, model, opts):
         elif opts.clustering == 'labels':
             print 'Using labels as clusters.'
             clust_pool = np.array(pool_labels)
+            print clust_pool
             clust_train = np.array(train_labels)
             opts.n_clust = len(set(pool_labels) | set(train_labels))
             opts.n_pool_clust = int(n_pool / opts.n_clust)
@@ -88,9 +90,25 @@ def acquisition(pool_loader, train_loader, model, opts):
 
         else:
             # clustering data in the feature space
-            print 'Unsupervised clustering'
-            clust_pool, clust_train = feature_clust(pool_features, train_features, opts.n_clust)
+            print 'Unsupervised clustering, ',
+            if len(clusters) == 0 or opts.ft_begin_index != 5:
+                print 'performing clustering'
+                clust_pool, clust_train = feature_clust(pool_features, train_features, opts.n_clust)
 
+                if opts.clustering == 'unsupervised-ds-svm':
+                    clx = np.zeros(len(pool_features) + len(train_features))
+                    for i in range(len(train_features)):
+                        idx = train_loader_noshuffle.dataset.indices[i]
+                        clx[idx] = clust_train[i]
+                    for i in range(len(pool_features)):
+                        idx = pool_loader_noshuffle.dataset.indices[i]
+                        clx[idx] = clust_pool[i]
+
+                    clusters.extend(clx)
+            else:
+                print 'loading clusters'
+                clust_pool  = [clusters[i] for i in pool_loader_noshuffle.dataset.indices]
+                clust_train = [clusters[i] for i in train_loader_noshuffle.dataset.indices]
         # selection on clusters
         pooled_idx = clustered_acquisition(train_features, clust_train, pool_features, clust_pool, score, opts, n_pool)
 
@@ -141,6 +159,9 @@ def clustered_acquisition(f_train, clust_train, f_pool, clust_pool, score, args,
     pooled_idx = []
     # optimal selction in each cluster
     print 'Runnung clustered_acquisition with optimality function: ', args.optimality
+    if args.optimality == 'ds3':
+        eng = matlab.engine.start_matlab()
+
     for c in range(args.n_clust):
         idx_pool_c  = np.where(clust_pool == c)[0]
         idx_train_c = np.where(clust_train == c)[0]
@@ -154,8 +175,12 @@ def clustered_acquisition(f_train, clust_train, f_pool, clust_pool, score, args,
             # print 'alpha = 0 or optimality == none, selection based on just the score function: ', args.score_func
             pooled_idx_c = np.argsort(score_c)[-n_pool_clust:]
         elif args.optimality == 'ds3':
-            eng = matlab.engine.start_matlab()
+            max_size = 500
+            if len(idx_pool_c) > max_size:
+                idx_pool_c = random.sample(idx_pool_c, max_size)
+
             f_pool_c = [f_pool[i] for i in idx_pool_c]
+            print ' cluster size: ', len(f_pool_c), ', cluster: ', c
             pooled_idx_c = ds3_selection(eng, f_pool_c, n_pool_clust)
         else:
             f_pool_c = [f_pool[i] for i in idx_pool_c]
@@ -190,7 +215,8 @@ def feature_clust(f_pool, f_train, n_clust, method='unsupervised-spectral'):
         labels = ds_svm_clustering(data_f_pool, n_clust=n_clust, eta=4, ds_ratio=0.25, plot=False, metric='euclidean')
     elif method == 'unsupervised-spectral':
     # spectral clustering
-        spectral = cl.SpectralClustering(n_clusters=n_clust, eigen_solver='arpack', affinity="nearest_neighbors")
+        spectral = cl.SpectralClustering(n_clusters=n_clust, eigen_solver='arpack',
+                                         affinity="nearest_neighbors", n_jobs=6)
         spectral.fit(data_f_pool)
         labels = spectral.labels_
     elif method == 'unsupervised-kmeans':

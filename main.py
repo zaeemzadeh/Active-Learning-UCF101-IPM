@@ -185,12 +185,14 @@ if __name__ == '__main__':
             optimizer.load_state_dict(checkpoint['optimizer'])
 
     # initial selection if necessary
+    clusters = []
     if opt.init_selection == 'same':
         print 'initial data selection: same'
-        acquisition(pool_loader, train_loader, model, opt)
+        acquisition(pool_loader, train_loader, model, opt, clusters)
 
     cycle_val_acc = []
     cycle_test_acc = []
+
     while len(training_data) <= opt.max_train_size:
         #labels = [train_loader.dataset[i][1] for i in range(len(train_loader.dataset))]
         print('=========================================')
@@ -249,7 +251,7 @@ if __name__ == '__main__':
             break
         print('-----------------------------------------')
         print('acqusition')
-        acquisition(pool_loader, train_loader, model, opt)
+        acquisition(pool_loader, train_loader, model, opt, clusters)
 
         #reset model
         del model

@@ -108,7 +108,7 @@ def ds_svm_clustering(X, n_clust=2, eta=2, ds_ratio=0.25, plot=False, metric='eu
     S = compute_kernel(X, metric=metric)
 
     print 'SpectralClustering'
-    spectral = SpectralClustering(n_clusters=n_clust, eigen_solver='arpack', affinity='precomputed')
+    spectral = SpectralClustering(n_clusters=n_clust, eigen_solver='arpack', affinity='precomputed', n_jobs=6)
     spectral.fit(S)
     labels = spectral.labels_
 
