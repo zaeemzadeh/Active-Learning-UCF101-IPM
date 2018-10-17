@@ -9,6 +9,7 @@ import matlab
 import matlab.engine
 
 from ds_svm_clustering import ds_svm_clustering
+from kmedoids import k_medoids_selection
 
 
 def acquisition(pool_loader, train_loader, model, opts, clusters):
@@ -178,10 +179,13 @@ def clustered_acquisition(f_train, clust_train, f_pool, clust_pool, score, args,
             max_size = 500
             if len(idx_pool_c) > max_size:
                 idx_pool_c = random.sample(idx_pool_c, max_size)
-
             f_pool_c = [f_pool[i] for i in idx_pool_c]
+
             print ' cluster size: ', len(f_pool_c), ', cluster: ', c
             pooled_idx_c = ds3_selection(eng, f_pool_c, n_pool_clust)
+        elif args.optimality == 'kmedoids':
+            f_pool_c = [f_pool[i] for i in idx_pool_c]
+            pooled_idx_c, _ = k_medoids_selection(f_pool_c, n_pool_clust)
         else:
             f_pool_c = [f_pool[i] for i in idx_pool_c]
             f_train_c = [f_train[i] for i in idx_train_c]
@@ -210,19 +214,18 @@ def feature_clust(f_pool, f_train, n_clust, method='unsupervised-spectral'):
 
     data_f_pool.extend(data_f_train)
 
-    # ds-svm cluctering
     if method == 'unsupervised-ds-svm':
         labels = ds_svm_clustering(data_f_pool, n_clust=n_clust, eta=4, ds_ratio=0.25, plot=False, metric='euclidean')
     elif method == 'unsupervised-spectral':
-    # spectral clustering
         spectral = cl.SpectralClustering(n_clusters=n_clust, eigen_solver='arpack',
                                          affinity="nearest_neighbors", n_jobs=6)
         spectral.fit(data_f_pool)
         labels = spectral.labels_
     elif method == 'unsupervised-kmeans':
-    # kmeans
-        clusters = cl.k_means(data_f_pool, 10)  #Kmeans Clustering
+        clusters = cl.k_means(data_f_pool, n_clust)  #Kmeans Clustering
         labels = clusters[1]
+    elif method == 'unsupervised-kmedoids':
+        _, labels = k_medoids_selection(data_f_pool, n_clust)
     else:
         raise ValueError('Invalid clustering method!')
 
@@ -357,6 +360,7 @@ def ds3_selection(eng, data, n_samples):
     s = [int(s[0][i] - 1) for i in range(len(s[0]))]        # matlab has 1-based indexing, therefore - 1
 
     return s[:n_samples]
+
 
 
 # def regularized_pinv(M, alpha=0):
