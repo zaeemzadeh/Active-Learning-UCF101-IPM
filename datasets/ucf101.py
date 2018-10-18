@@ -175,6 +175,7 @@ class UCF101(data.Dataset):
         self.temporal_transform = temporal_transform
         self.target_transform = target_transform
         self.loader = get_loader()
+        self.weights = [1 for _ in range(len(self.data))]
 
     def __getitem__(self, index):
         """
@@ -198,7 +199,8 @@ class UCF101(data.Dataset):
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        return clip, target
+        weight = self.weights[index]
+        return clip, target, weight
 
     def __len__(self):
         return len(self.data)

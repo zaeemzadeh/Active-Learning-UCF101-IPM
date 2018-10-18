@@ -170,7 +170,7 @@ def generate_model(opt):
             pretrain = torch.load(opt.pretrain_path)
             assert opt.arch == pretrain['arch']
 
-            print ('print pretrained model keys {}'.format(pretrain['state_dict'].keys()))
+            # print ('print pretrained model keys {}'.format(pretrain['state_dict'].keys()))
             model.load_state_dict(pretrain['state_dict'])
 
             if opt.model == 'densenet':

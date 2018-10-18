@@ -37,7 +37,7 @@ def test(data_loader, model, opt, class_names):
     output_buffer = []
     previous_video_id = ''
     test_results = {'results': {}}
-    for i, (inputs, targets) in enumerate(data_loader):
+    for i, (inputs, targets, _) in enumerate(data_loader):
         data_time.update(time.time() - end_time)
 
         with torch.no_grad():

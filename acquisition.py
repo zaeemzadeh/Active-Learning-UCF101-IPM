@@ -118,6 +118,10 @@ def acquisition(pool_loader, train_loader, model, opts, clusters):
     train_loader.dataset.indices = list(set(train_loader.dataset.indices) | pooled_idx_set)
     pool_loader.dataset.indices = list(set(pool_loader.dataset.indices) - pooled_idx_set)
 
+    if len(clusters) != 0:
+        train_loader.dataset.dataset.weights = [len(clusters) / float(len(np.where(clusters == clusters[i])[0])) for i in
+                                range(len(clusters))]
+
     return
 
 
@@ -138,7 +142,7 @@ def extract_features(data_loader, model, label_only=False):
     features = []
     labels = []
     outputs = []
-    for i, (inputs, l) in enumerate(data_loader):
+    for i, (inputs, l, _) in enumerate(data_loader):
         labels.extend(l.data.cpu().numpy())
 
         if not label_only:
@@ -157,12 +161,15 @@ def extract_features(data_loader, model, label_only=False):
 
 
 def clustered_acquisition(f_train, clust_train, f_pool, clust_pool, score, args, n_pool):
-    pooled_idx = []
+    clust_train = np.array(clust_train)
+    clust_pool = np.array(clust_pool)
+
     # optimal selction in each cluster
     print 'Runnung clustered_acquisition with optimality function: ', args.optimality
     if args.optimality == 'ds3':
         eng = matlab.engine.start_matlab()
 
+    pooled_idx = []
     for c in range(args.n_clust):
         idx_pool_c  = np.where(clust_pool == c)[0]
         idx_train_c = np.where(clust_train == c)[0]
@@ -270,7 +277,7 @@ def x_optimal_add_sample(train, pool, score, pooled_idx, alpha, type):
 
         A = [np.ravel(pool[i]) for i in set_idx]
         A.extend(A_train)
-        # A = [a/np.linalg.norm(a) for a in A]            # normalization
+        A = [a/np.linalg.norm(a) for a in A]            # normalization
         A = np.asarray(A)
 
         eigs = np.linalg.eigvalsh(np.matmul(A, A.transpose()) + 0.5*np.eye(len(A)))

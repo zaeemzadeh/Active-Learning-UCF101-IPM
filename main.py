@@ -7,6 +7,8 @@ from torch import nn
 from torch import optim
 from torch.optim import lr_scheduler
 
+import weighted_cross_entropy as weighted
+
 from opts import parse_opts
 from model import generate_model
 from mean import get_mean, get_std
@@ -53,7 +55,7 @@ if __name__ == '__main__':
 
     model, parameters = generate_model(opt)
     #print(model)
-    criterion = nn.CrossEntropyLoss()
+    criterion = weighted.CrossEntropyLoss()
     if not opt.no_cuda:
         criterion = criterion.cuda()
 
@@ -252,6 +254,7 @@ if __name__ == '__main__':
         print('-----------------------------------------')
         print('acqusition')
         acquisition(pool_loader, train_loader, model, opt, clusters)
+
 
         #reset model
         del model
