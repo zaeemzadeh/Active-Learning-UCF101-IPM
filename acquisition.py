@@ -51,9 +51,11 @@ def acquisition(pool_loader, train_loader, model, opts, clusters):
     if need_labels or need_features:
         label_only = (need_labels and not need_features)
         print 'extracting features of the training dataset. label_only=', label_only
-        train_features, train_labels, train_outputs = extract_features(train_loader_noshuffle, model, label_only=label_only)
+        train_features, train_labels, train_outputs = extract_features(train_loader_noshuffle, model,
+                                                                       opts, label_only=label_only)
         print 'extracting features of the pooling dataset. label_only=', label_only
-        pool_features, pool_labels, pool_outputs = extract_features(pool_loader_noshuffle, model, label_only=label_only)
+        pool_features, pool_labels, pool_outputs = extract_features(pool_loader_noshuffle, model,
+                                                                    opts, label_only=label_only)
 
     # calculating the score function (this is different from optimality) can be random or some uncertainty measure
     if opts.score_func == 'random':
@@ -89,6 +91,9 @@ def acquisition(pool_loader, train_loader, model, opts, clusters):
             opts.n_pool_clust = int(n_pool / opts.n_clust)
             print 'n_clust overwritten to', opts.n_clust, 'n_pool_clust overwritten to ', opts.n_pool_clust
 
+        elif opts.clustering == 'unsupervised-network':
+            clust_pool = [np.argmax(output) for output in pool_outputs]
+            clust_train = [np.argmax(output) for output in train_outputs]
         else:
             # clustering data in the feature space
             print 'Unsupervised clustering, ',
@@ -118,24 +123,27 @@ def acquisition(pool_loader, train_loader, model, opts, clusters):
     train_loader.dataset.indices = list(set(train_loader.dataset.indices) | pooled_idx_set)
     pool_loader.dataset.indices = list(set(pool_loader.dataset.indices) - pooled_idx_set)
 
-    if len(clusters) != 0:
-        train_loader.dataset.dataset.weights = [len(clusters) / float(len(np.where(clusters == clusters[i])[0])) for i in
-                                range(len(clusters))]
+    # if len(clusters) != 0:
+    #     train_loader.dataset.dataset.weights = [len(clusters) / float(len(np.where(clusters == clusters[i])[0])) for i in
+    #                             range(len(clusters))]
 
     return
 
 
-def extract_features(data_loader, model, label_only=False):
+def extract_features(data_loader, model, opts, label_only=False):
     if not label_only:
-        feature_extractor = nn.Sequential(*list(model.module.children())[:-1])
+        feature_extractor = nn.Sequential(*list(model.module.children())[:-2])
         feature_extractor = feature_extractor.cuda()
         feature_extractor = nn.DataParallel(feature_extractor, device_ids=None)
         feature_extractor.eval()
 
-        fc_layer = nn.Sequential(list(model.module.children())[-1])
+        fc_layer = nn.Sequential(*list(model.module.children())[-2:])
         fc_layer = fc_layer.cuda()
         fc_layer = nn.DataParallel(fc_layer, device_ids=None)
         fc_layer.eval()
+        if opts.dropout_rate != 0:
+            print 'Dropout at test time'
+            fc_layer.module[0].train()
 
         softmax = nn.Softmax(dim=1)
 
@@ -150,6 +158,12 @@ def extract_features(data_loader, model, label_only=False):
                 inputs = Variable(inputs)
             batch_features = feature_extractor(inputs).data.view(inputs.size(0), -1)
             batch_outputs = softmax(fc_layer(batch_features))
+
+            # mc dropout for better uncertainty score
+            for mc in range(1, opts.MC_runs):
+                batch_outputs += softmax(fc_layer(batch_features))
+            batch_outputs /= opts.MC_runs
+
             # TODO: convert to numpy more efficiently
             features.extend(batch_features.cpu().numpy())
             outputs.extend(batch_outputs.data.view(inputs.size(0), -1).cpu().numpy())
@@ -346,7 +360,7 @@ def IPM_add_sample(train, pool, score, alpha, pooled_idx):
 
     # finding the best sample
     #objective = correlation
-    objective = (1 - alpha) * score + alpha * correlation
+    objective = alpha * correlation + (1 - alpha) * score
     sorted_idx = np.argsort(objective)
     sorted_idx = np.flipud(sorted_idx)   # sort in decsending order
 
@@ -375,4 +389,3 @@ def ds3_selection(eng, data, n_samples):
 #         return np.linalg.pinv(M)
 #     else:
 #         pinv =() M.transpose() M
-
