@@ -85,7 +85,7 @@ def acquisition(pool_loader, train_loader, model, opts, clusters):
         elif opts.clustering == 'labels':
             print 'Using labels as clusters.'
             clust_pool = np.array(pool_labels)
-            print clust_pool
+            # print clust_pool
             clust_train = np.array(train_labels)
             opts.n_clust = len(set(pool_labels) | set(train_labels))
             opts.n_pool_clust = int(n_pool / opts.n_clust)

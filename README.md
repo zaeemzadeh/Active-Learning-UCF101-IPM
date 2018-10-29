@@ -40,7 +40,47 @@ Info on pretraining available [here](https://github.com/kenshohara/3D-ResNets-Py
 
 ## Parameters
 
---root_path /home/alireza/Desktop/I3D-RGB-branch/data --video_path frames/ --annotation_path /home/alireza/Desktop/I3D-RGB-branch/data/ucfTrainTestlist/ucf101_01.json --result_path /home/alireza/Desktop/I3D-RGB-branch/data/results/ --pretrain_path /home/alireza/Desktop/I3D-RGB-branch/pretrained/resnet-18-kinetics.pth --dataset ucf101 --n_finetune_classes 101 --ft_begin_index 5 --weight_decay 1e-3 --learning_rate 1e-1 --model resnet --resnet_shortcut A --model_depth 18 --n_classes 400 --batch_size 24 --n_threads 4 --checkpoint 5 --manual_seed 1 --n_epochs 50 --test --test_subset val
+--root_path
+/home/alireza/Desktop/I3D-RGB-branch/data
+--video_path
+frames/
+--annotation_path
+/home/alireza/Desktop/I3D-RGB-branch/data/ucfTrainTestlist/ucf101_01.json
+--result_path
+/home/alireza/Desktop/I3D-RGB-branch/data/results/
+--pretrain_path
+/home/alireza/Desktop/I3D-RGB-branch/pretrained/resnet-18-kinetics.pth
+--dataset
+ucf101
+--n_finetune_classes
+101
+--ft_begin_index
+5
+--weight_decay
+1e-3
+--learning_rate
+1e-1
+--model
+resnet
+--resnet_shortcut
+A
+--model_depth
+18
+--n_classes
+400
+--batch_size
+24
+--n_threads
+4
+--checkpoint
+5
+--manual_seed
+1
+--n_epochs
+100
+--test
+--test_subset
+val
 # acqusition args
     parser.add_argument('--init_train_size', type=int, default=101)
     parser.add_argument('--max_train_size', type=int, default=505)

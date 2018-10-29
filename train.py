@@ -19,17 +19,17 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
     accuracies = AverageMeter()
 
     end_time = time.time()
-    for i, (inputs, targets, weights) in enumerate(data_loader):
+    for i, (inputs, targets, _) in enumerate(data_loader):
         data_time.update(time.time() - end_time)
 
         if not opt.no_cuda:
             targets = targets.cuda(async=True)
-            weights = weights.cuda(async=True).float()
+            # weights = weights.cuda(async=True).float()
         inputs = Variable(inputs) # (B,C,T,H,W)
         targets = Variable(targets) # (B, )
-        weights = Variable(weights)
+        # weights = Variable(weights)
         outputs = model(inputs)
-        loss = criterion(outputs, targets, weights)
+        loss = criterion(outputs, targets)
         acc = calculate_accuracy(outputs, targets)
 
         losses.update(loss.item(), inputs.size(0))

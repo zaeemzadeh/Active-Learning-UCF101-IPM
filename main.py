@@ -56,7 +56,8 @@ if __name__ == '__main__':
     model, parameters = generate_model(opt)
     model.module.dropout.p = opt.dropout_rate
     #print(model)
-    criterion = weighted.CrossEntropyLoss()
+    # criterion = weighted.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss()
     if not opt.no_cuda:
         criterion = criterion.cuda()
 
@@ -102,24 +103,25 @@ if __name__ == '__main__':
         elif opt.init_selection == 'uniform_random':
             # select balanced dataset randomly
             print 'initial data selection: uniform_random'
-            labeled_data_loader = torch.utils.data.DataLoader(
-                labeled_data,
-                batch_size=256,
-                shuffle=False,
-                num_workers=opt.n_threads,
-                pin_memory=True)
-            _, labels, _ = extract_features(labeled_data_loader, model, opt, label_only=True)
-            n_classes = len(labeled_data.class_names)
-            samp_per_class = np.diff(np.linspace(0, opt.init_train_size, n_classes + 1, dtype=int))
-
-            training_idx_set = set()
-            for c in range(n_classes):
-                idx_c = np.where(np.array(labels) == c)[0]
-                training_idx_set = training_idx_set | set(np.random.permutation(idx_c)[:samp_per_class[c]])
-
+            # labeled_data_loader = torch.utils.data.DataLoader(
+            #     labeled_data,
+            #     batch_size=256,
+            #     shuffle=False,
+            #     num_workers=opt.n_threads,
+            #     pin_memory=True)
+            # _, labels, _ = extract_features(labeled_data_loader, model, opt, label_only=True)
+            # n_classes = len(labeled_data.class_names)
+            # samp_per_class = np.diff(np.linspace(0, opt.init_train_size, n_classes + 1, dtype=int))
+            #
+            # training_idx_set = set()
+            # for c in range(n_classes):
+            #     idx_c = np.where(np.array(labels) == c)[0]
+            #     training_idx_set = training_idx_set | set(np.random.permutation(idx_c)[:samp_per_class[c]])
+            training_idx_set = set(np.load('initial_IPM_03_selection.npy'))
             pool_idx_set = set(range(len(labeled_data))) - training_idx_set
         else:
             raise ValueError('Invalid method for initial data selection!')
+
 
         training_data = torch.utils.data.Subset(labeled_data, list(training_idx_set))
         pool_data = torch.utils.data.Subset(labeled_data, list(pool_idx_set))
@@ -193,6 +195,7 @@ if __name__ == '__main__':
         print 'initial data selection: same'
         acquisition(pool_loader, train_loader, model, opt, clusters)
 
+    np.save('initial_selection.npy', np.array(train_loader.dataset.indices))
     cycle_val_acc = []
     cycle_test_acc = []
 
