@@ -33,7 +33,7 @@ function sInd = run_ds3(X, alpha)
     % regularizer coefficient
     outlierDetect = false; % if true, run the extended DS3 with outlier detection
     beta = 1; % regularization for outlier detection
-    verbose = false; % true/false: show/hide optimization steps
+    verbose = true; % true/false: show/hide optimization steps
     if (verbose)
         disp('UPDATE 5')
         disp(['DS3 started with alpha = ' num2str(alpha)])
