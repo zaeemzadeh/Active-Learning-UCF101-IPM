@@ -222,10 +222,10 @@ def clustered_acquisition(f_train, clust_train, f_pool, clust_pool, score, args,
     # return [int(pooled_idx[i]) for i in med_idx]
 
     # uncertainty selection on the selected samples
-    pooled_score = [float(score[i]) for i in pooled_idx]
-    sorted_idx = np.argsort(pooled_score)
-    sorted_idx = sorted_idx[-n_pool:]
-    return [int(pooled_idx[i]) for i in sorted_idx]
+    # pooled_score = [float(score[i]) for i in pooled_idx]
+    # sorted_idx = np.argsort(pooled_score)
+    # sorted_idx = sorted_idx[-n_pool:]
+    return [int(pooled_idx[i]) for i in range(len(pooled_idx))]
 
 
 def feature_clust(f_pool, f_train, n_clust, method='unsupervised-spectral'):
@@ -356,6 +356,7 @@ def IPM_add_sample(train, pool, score, alpha, pooled_idx):
             continue
 
         correlation[m] = np.abs(np.inner(A_mat[:, m], first_eig_vec))
+        # correlation[m] = np.inner(A_mat[:, m], first_eig_vec)
         correlation[m] /= np.linalg.norm(np.squeeze(A_mat[:, m]))
 
     # finding the best sample
