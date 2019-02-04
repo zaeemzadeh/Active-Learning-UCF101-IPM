@@ -102,7 +102,7 @@ if __name__ == '__main__':
             pool_idx_set = set(range(len(labeled_data))) - training_idx_set
         elif opt.init_selection == 'uniform_random':
             # select balanced dataset randomly
-            print 'initial data selection: uniform_random'
+            # print 'initial data selection: uniform_random'
             # labeled_data_loader = torch.utils.data.DataLoader(
             #     labeled_data,
             #     batch_size=256,
@@ -117,7 +117,8 @@ if __name__ == '__main__':
             # for c in range(n_classes):
             #     idx_c = np.where(np.array(labels) == c)[0]
             #     training_idx_set = training_idx_set | set(np.random.permutation(idx_c)[:samp_per_class[c]])
-            training_idx_set = set(np.load('initial_IPM_03_selection.npy'))
+            # np.save('initial_selection_1.npy', list(training_idx_set))
+            training_idx_set = set(np.load('initial_selection_1.npy'))
             pool_idx_set = set(range(len(labeled_data))) - training_idx_set
         else:
             raise ValueError('Invalid method for initial data selection!')
@@ -195,14 +196,15 @@ if __name__ == '__main__':
         print 'initial data selection: same'
         acquisition(pool_loader, train_loader, model, opt, clusters)
 
-    np.save('initial_selection.npy', np.array(train_loader.dataset.indices))
+    print [train_loader.dataset.dataset.data[i]['video'] for i in train_loader.dataset.indices]
+    # np.save('initial_selection.npy', np.array(train_loader.dataset.indices))
     cycle_val_acc = []
     cycle_test_acc = []
 
     while len(training_data) <= opt.max_train_size:
-        #labels = [train_loader.dataset[i][1] for i in range(len(train_loader.dataset))]
+        # labels = [train_loader.dataset[i][1] for i in range(len(train_loader.dataset))]
         print('=========================================')
-        #print 'number of samples from each class: ', set([len(np.where(np.array(labels) == i)[0]) for i in range(101)])
+        # print 'number of samples from each class: ', set([len(np.where(np.array(labels) == i)[0]) for i in range(101)])
         print 'train dataset size: ', len(training_data)
         print 'pool  dataset size: ', len(pool_data)
         print 'max train dataset size: ', opt.max_train_size

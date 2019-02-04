@@ -377,7 +377,12 @@ def ds3_selection(eng, data, n_samples):
     # Dissimilarity-Based Sparse Subset Selection
     # https://ieeexplore.ieee.org/abstract/document/7364258
     data_mat = matlab.double([data[i].tolist() for i in range(len(data))])
-    alpha = matlab.double([1])
+    if n_samples == 1:
+        alpha = matlab.double([1])
+    elif n_samples < 10:
+        alpha = matlab.double([0.1])
+    else:
+        alpha = matlab.double([0.05])
     s = eng.run_ds3(data_mat, alpha)
     s = [int(s[0][i] - 1) for i in range(len(s[0]))]        # matlab has 1-based indexing, therefore - 1
 
