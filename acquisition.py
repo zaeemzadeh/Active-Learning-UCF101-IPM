@@ -261,8 +261,8 @@ def optimal_acquisition(train, pool, score, n_pool, alpha, type):
     while len(pooled_idx) < n_pool:
         if type == 'IPM':
             new_idx = IPM_add_sample(train, pool, score, alpha, pooled_idx)
-        # elif type == 'MP':
-        #     new_idx = MP_add_sample(train, pool, pooled_idx)
+        elif type == 'MP':
+            new_idx = MP_add_sample(train, pool, score, alpha, pooled_idx)
         else:
             new_idx = x_optimal_add_sample(train, pool, score, pooled_idx, alpha, type)
 
@@ -357,6 +357,56 @@ def IPM_add_sample(train, pool, score, alpha, pooled_idx):
 
         correlation[m] = np.abs(np.inner(A_mat[:, m], first_eig_vec))
         correlation[m] /= np.linalg.norm(np.squeeze(A_mat[:, m]))
+
+    # finding the best sample
+    #objective = correlation
+    objective = alpha * correlation + (1 - alpha) * score
+    sorted_idx = np.argsort(objective)
+    sorted_idx = np.flipud(sorted_idx)   # sort in decsending order
+
+    # avoiding duplicates
+    i = 0
+    while sorted_idx[i] in pooled_idx:
+        i += 1
+
+    return sorted_idx[i]
+
+
+def MP_add_sample(train, pool, score, alpha, pooled_idx):
+    candidate_samples = range(0, len(pool))         # all samples
+    # candidate_samples = cp.argsort(score)[-100:]     # best samples based on score
+    set_idx = [int(idx) for idx in pooled_idx]
+
+    A_train = [np.ravel(t) for t in train]
+    A_train.extend([np.ravel(pool[i]) for i in set_idx])
+    A_s_mat = np.array(A_train).transpose()
+    if len(A_s_mat.shape) == 1:
+        A_s_mat = A_s_mat.reshape((-1, 1))
+
+
+    A_pool = [np.ravel(t) for t in pool]
+    A_mat = np.array(A_pool).transpose()
+    if len(A_mat.shape) == 1:
+        A_mat = A_mat.reshape((-1, 1))
+
+    # Normalizing data points
+    A_mat = A_mat / np.sqrt(sum(A_mat ** 2)[np.newaxis, :])
+    #print A_s_mat.shape, A_mat.shape
+    if len(A_s_mat) == 0:
+        A_proj = A_mat
+    else:
+        Proj = np.matmul(A_s_mat, np.linalg.pinv(A_s_mat))
+        A_proj = A_mat - np.matmul(Proj, A_mat)
+
+    # calculating MP score
+    correlation = np.zeros(len(pool))
+    for m in candidate_samples:
+
+        if m in pooled_idx:
+            correlation[m] = 0
+            continue
+
+        correlation[m] = np.linalg.norm(np.squeeze(A_proj[:, m]))
 
     # finding the best sample
     #objective = correlation
