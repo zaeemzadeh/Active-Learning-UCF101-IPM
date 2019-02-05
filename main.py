@@ -118,7 +118,7 @@ if __name__ == '__main__':
             #     idx_c = np.where(np.array(labels) == c)[0]
             #     training_idx_set = training_idx_set | set(np.random.permutation(idx_c)[:samp_per_class[c]])
             # np.save('initial_selection_1.npy', list(training_idx_set))
-            training_idx_set = set(np.load('initial_selection.npy'))
+            training_idx_set = set(np.load('initial_selection_1.npy'))
             pool_idx_set = set(range(len(labeled_data))) - training_idx_set
         else:
             raise ValueError('Invalid method for initial data selection!')
