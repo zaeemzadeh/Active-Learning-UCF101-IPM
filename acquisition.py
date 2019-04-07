@@ -4,6 +4,7 @@ from torch.autograd import Variable
 import numpy as np
 import sklearn.cluster as cl
 import random
+import irlb
 
 import matlab
 import matlab.engine
@@ -344,8 +345,11 @@ def IPM_add_sample(train, pool, score, alpha, pooled_idx):
         Proj = np.matmul(A_s_mat, np.linalg.pinv(A_s_mat))
         A_proj = A_mat - np.matmul(Proj, A_mat)
 
-    u, _, _ = np.linalg.svd(A_proj, full_matrices=False)
-    first_eig_vec = u[:, 0]
+    # u, _, _ = np.linalg.svd(A_proj, full_matrices=False)
+    # first_eig_vec = u[:, 0]
+
+    first_eig_vec = irlb.irlb(A_proj, 2)[0][:, 0]
+
     # calculating MP score
     #print cp.linalg.norm(Res)
     correlation = np.zeros(len(pool))
