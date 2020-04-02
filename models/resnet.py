@@ -138,7 +138,6 @@ class ResNet(nn.Module):
         last_size = int(math.ceil(sample_size / 32.))
         self.avgpool = nn.AvgPool3d(
             (last_duration, last_size, last_size), stride=1)
-        self.dropout = torch.nn.Dropout(0.)
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
@@ -187,8 +186,6 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
 
         x = x.view(x.size(0), -1)
-        x = self.dropout(x)
-
         x = self.fc(x)
 
         return x

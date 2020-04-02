@@ -7,19 +7,18 @@ import sys
 import json
 
 from utils import AverageMeter
-"""
-video level average accuracy
-"""
+
 
 def calculate_video_results(output_buffer, video_id, test_results, class_names):
     video_outputs = torch.stack(output_buffer)
     average_scores = torch.mean(video_outputs, dim=0)
     sorted_scores, locs = torch.topk(average_scores, k=10)
+
     video_results = []
     for i in range(sorted_scores.size(0)):
         video_results.append({
-            'label': class_names[locs[i].item()],
-            'score': sorted_scores[i].item()
+            'label': class_names[locs[i]],
+            'score': sorted_scores[i]
         })
 
     test_results['results'][video_id] = video_results
@@ -37,14 +36,13 @@ def test(data_loader, model, opt, class_names):
     output_buffer = []
     previous_video_id = ''
     test_results = {'results': {}}
-    for i, (inputs, targets, _) in enumerate(data_loader):
+    for i, (inputs, targets) in enumerate(data_loader):
         data_time.update(time.time() - end_time)
 
-        with torch.no_grad():
-            inputs = Variable(inputs)
+        inputs = Variable(inputs, volatile=True)
         outputs = model(inputs)
         if not opt.no_softmax_in_test:
-            outputs = F.softmax(outputs, dim=1)
+            outputs = F.softmax(outputs)
 
         for j in range(outputs.size(0)):
             if not (i == 0 and j == 0) and targets[j] != previous_video_id:

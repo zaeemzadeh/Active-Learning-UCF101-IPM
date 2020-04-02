@@ -78,7 +78,7 @@ def get_video_names_and_annotations(data, subset):
 
     return video_names, annotations
 
-#currently, n_samples_for_each_video has a default value = 1
+
 def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
                  sample_duration):
     data = load_annotation_data(annotation_path)
@@ -125,21 +125,15 @@ def make_dataset(root_path, annotation_path, subset, n_samples_for_each_video,
                                      (n_samples_for_each_video - 1)))
             else:
                 step = sample_duration
-
             for j in range(1, n_frames, int(step)):
                 sample_j = copy.deepcopy(sample)
                 sample_j['frame_indices'] = list(
                     range(j, min(n_frames + 1, j + sample_duration)))
                 dataset.append(sample_j)
+
     return dataset, idx_to_class
 
 
-
-"""
-when training, n_samples_for_each_video = 1. 
-when validation, n_samples_for_each_video ~ 3. 
-when test, n_samples_for_each_video depends on the video n_frames.
-"""
 class UCF101(data.Dataset):
     """
     Args:
@@ -175,7 +169,6 @@ class UCF101(data.Dataset):
         self.temporal_transform = temporal_transform
         self.target_transform = target_transform
         self.loader = get_loader()
-        self.weights = [1 for _ in range(len(self.data))]
 
     def __getitem__(self, index):
         """
@@ -193,14 +186,13 @@ class UCF101(data.Dataset):
         if self.spatial_transform is not None:
             self.spatial_transform.randomize_parameters()
             clip = [self.spatial_transform(img) for img in clip]
-        clip = torch.stack(clip, 0).permute(1, 0, 2, 3) #(C, T, H, W)
+        clip = torch.stack(clip, 0).permute(1, 0, 2, 3)
 
         target = self.data[index]
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        weight = self.weights[index]
-        return clip, target, weight
+        return clip, target
 
     def __len__(self):
         return len(self.data)
