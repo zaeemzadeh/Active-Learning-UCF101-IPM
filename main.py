@@ -190,7 +190,6 @@ if __name__ == '__main__':
         print 'initial data selection: same'
         acquisition(pool_loader, train_loader, model, opt)
 
-    print [train_loader.dataset.dataset.data[i]['video'] for i in train_loader.dataset.indices]
     cycle_val_acc = []
     cycle_test_acc = []
 

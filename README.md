@@ -1,5 +1,5 @@
 # Active Learning using Iterative Projection and Matching
-implementation of the active learning algorithm proposed in: 
+Implementation of the active learning experiment on UCF-101 video dataset proposed in: 
 
 Alireza Zaeemzadeh, Mohsen Joneidi ( shared first authorship) , Nazanin Rahnavard, Mubarak Shah: Iterative Projection and Matching: Finding Structure-preserving Representatives and Its Application to Computer Vision. IEEE Conference on Computer Vision and Pattern Recognition (CVPR), 2019.
 [link](http://openaccess.thecvf.com/content_CVPR_2019/papers/Zaeemzadeh_Iterative_Projection_and_Matching_Finding_Structure-Preserving_Representatives_and_Its_Application_CVPR_2019_paper.pdf)
@@ -28,6 +28,8 @@ For inquiries, please contact zaeemzadeh -at- knights.ucf.edu.
 
 
 ## Requirements
+
+Most of the training code is used form [here.](https://github.com/kenshohara/3D-ResNets-PyTorch)
 
 Tested on:
 - Python 2.7
