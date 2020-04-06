@@ -33,13 +33,10 @@ Most of the training code is used form [here.](https://github.com/kenshohara/3D-
 
 Tested on:
 - Python 2.7
+- cuda 9.1 (2 GPUs)
 - torch 0.4.1
 - torchvision 0.2.1
 - irlbpy 0.1.0 [code](https://github.com/bwlewis/irlbpy)
-
-```bash
-conda install pytorch torchvision cuda80 -c soumith
-```
 
 * FFmpeg, FFprobe
 
@@ -51,24 +48,25 @@ cd ./ffmpeg-3.3.3-64bit-static/; sudo cp ffmpeg ffprobe /usr/local/bin;
 
 
 ### Dataset
+* Download videos and train/test splits [here](http://crcv.ucf.edu/data/UCF101.php).
+* Convert from avi to jpg files using ```utils/video_jpg_ucf101_hmdb51.py```
 
-Download http://crcv.ucf.edu/data/UCF101.php
-
+```bash
 python utils/video_jpg_ucf101_hmdb51.py avi_video_directory jpg_video_directory
+```
 
+* Generate n_frames files using ```utils/n_frames_ucf101_hmdb51.py```
+
+```bash
 python utils/n_frames_ucf101_hmdb51.py jpg_video_directory
+```
 
+* Generate annotation file in json format similar to ActivityNet using ```utils/ucf101_json.py```
+  * ```annotation_dir_path``` includes classInd.txt, trainlist0{1, 2, 3}.txt, testlist0{1, 2, 3}.txt
 
-~/
-  data/
-      frames/
-        .../ (directories of class names)
-          .../ (directories of video names)
-            ... (jpg files)
-    results/
-      save_100.pth
-    test.json
-
+```bash
+python utils/ucf101_json.py annotation_dir_path
+```
 
 ### Pre-trained models
 
