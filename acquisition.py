@@ -23,18 +23,18 @@ def acquisition(pool_loader, train_loader, model, opts):
 
     # setting the number of the samples to be pooled
     if len(train_loader.dataset.indices) == 0: # initial acquisition
-        print 'initial selection: n_pool = ', opts.init_train_size
+        print('initial selection: n_pool = ', opts.init_train_size)
         n_pool = opts.init_train_size
     else:
-        print 'n_pool = ', opts.n_pool
+        print('n_pool = ', opts.n_pool)
         n_pool = opts.n_pool
 
-    print 'extracting features of the training dataset. '
+    print('extracting features of the training dataset. ')
     train_features, train_labels = extract_features(train_loader_noshuffle, model)
-    print 'extracting features of the pooling dataset.'
+    print('extracting features of the pooling dataset.')
     pool_features, pool_labels = extract_features(pool_loader_noshuffle, model)
 
-    print 'selecting samples.'
+    print('selecting samples.')
     pooled_idx = ipm(train_features, pool_features, n_pool)
 
     pooled_idx_set = set([pool_loader_noshuffle.dataset.indices[i] for i in pooled_idx])
@@ -47,7 +47,7 @@ def acquisition(pool_loader, train_loader, model, opts):
 
 def extract_features(data_loader, model, label_only=False):
     if not label_only:
-        feature_extractor = nn.Sequential(*list(model.module.children())[:-2])
+        feature_extractor = nn.Sequential(*list(model.module.children())[:-1])
         feature_extractor = feature_extractor.cuda()
         feature_extractor = nn.DataParallel(feature_extractor, device_ids=None)
         feature_extractor.eval()
@@ -62,7 +62,6 @@ def extract_features(data_loader, model, label_only=False):
                 inputs = Variable(inputs)
                 batch_features = feature_extractor(inputs).data.view(inputs.size(0), -1)
 
-            # TODO: convert to numpy more efficiently
             features.extend(batch_features.cpu().numpy())
 
         if i % 100 == 0:

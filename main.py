@@ -50,6 +50,7 @@ if __name__ == '__main__':
         json.dump(vars(opt), opt_file)
 
     torch.manual_seed(opt.manual_seed)
+    np.random.seed(opt.manual_seed)
 
     model, parameters = generate_model(opt)
 
@@ -93,12 +94,12 @@ if __name__ == '__main__':
             pool_idx_set = set(range(len(labeled_data)))
         elif opt.init_selection == 'random':
             # split data randomly
-            print 'initial data selection: random'
+            print('initial data selection: random')
             training_idx_set = set(np.random.permutation(range(len(labeled_data)))[:opt.init_train_size])
             pool_idx_set = set(range(len(labeled_data))) - training_idx_set
         elif opt.init_selection == 'uniform_random':
             # select balanced dataset randomly
-            print 'initial data selection: uniform_random'
+            print('initial data selection: uniform_random')
             labeled_data_loader = torch.utils.data.DataLoader(
                 labeled_data,
                 batch_size=256,
@@ -187,7 +188,7 @@ if __name__ == '__main__':
     # initial selection if necessary
     clusters = []
     if opt.init_selection == 'same':
-        print 'initial data selection: same'
+        print('initial data selection: same')
         acquisition(pool_loader, train_loader, model, opt)
 
     cycle_val_acc = []
@@ -195,10 +196,10 @@ if __name__ == '__main__':
 
     while len(training_data) <= opt.max_train_size:
         print('=========================================')
-        print 'train dataset size: ', len(training_data)
-        print 'pool  dataset size: ', len(pool_data)
-        print 'max train dataset size: ', opt.max_train_size
-        print '# pooled data per cycle: ', opt.n_pool
+        print('train dataset size: ', len(training_data))
+        print('pool  dataset size: ', len(pool_data))
+        print('max train dataset size: ', opt.max_train_size)
+        print('# pooled data per cycle: ', opt.n_pool)
 
         print('Training')
         max_val_acc = 0
@@ -216,7 +217,7 @@ if __name__ == '__main__':
                 scheduler.step(validation_loss)
 
         cycle_val_acc.append(max_val_acc)
-        print cycle_val_acc
+        print(cycle_val_acc)
 
         if opt.test:
             spatial_transform = Compose([
@@ -242,7 +243,7 @@ if __name__ == '__main__':
                                        subset='validation', verbose=True, top_k=1)
             ucf101.evaluate()
             cycle_test_acc.append(ucf101.hit_at_k)
-            print cycle_test_acc
+            print(cycle_test_acc)
 
         # pool new labeled data
         if len(training_data) + opt.n_pool > opt.max_train_size:
