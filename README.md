@@ -5,28 +5,6 @@ Alireza Zaeemzadeh, Mohsen Joneidi ( shared first authorship) , Nazanin Rahnavar
 [link](http://openaccess.thecvf.com/content_CVPR_2019/papers/Zaeemzadeh_Iterative_Projection_and_Matching_Finding_Structure-Preserving_Representatives_and_Its_Application_CVPR_2019_paper.pdf)
 
 
-## Citing IPM
-If you use IPM in your research, please use the following BibTeX entry.
-```
-@inproceedings{zaeemzadeh2019ipm,
-    title = {{Iterative Projection and Matching: Finding Structure-preserving Representatives and Its Application to Computer Vision}},
-    year = {2019},
-    booktitle = {Computer Vision and Pattern Recognition, 2019. CVPR 2019. IEEE Conference on},
-    author = {Zaeemzadeh, Alireza and Joneidi, Mohsen and Rahnavard, Nazanin and Shah, Mubarak}
-}
-```
-
-
-## Project Webpages
-[Presentation ](https://youtu.be/OFe5z5fMUGc)
-
-[UCF Center for Research in Computer Vision (CRCV)](https://www.crcv.ucf.edu/home/projects/iterative-projection-and-matching/)
-
-[UCF Communications and Wireless Networks Lab (CWNlab)](http://cwnlab.eecs.ucf.edu/ipm/)
-
-For inquiries, please contact zaeemzadeh -at- knights.ucf.edu.
-
-
 ## Requirements
 
 Most of the training code is used form [here.](https://github.com/kenshohara/3D-ResNets-PyTorch)
@@ -77,5 +55,29 @@ Info on pretraining available [here](https://github.com/kenshohara/3D-ResNets-Py
 
 ## Sample Script
 ```bash
-python main.py --root_path data/ --video_path frames/ --annotation_path ucfTrainTestlist/ucf101_01.json --result_path results/ --pretrain_path pretrained/resnet-18-kinetics.pth --n_finetune_classes 101 --ft_begin_index 5 --weight_decay 1e-3 --learning_rate 1e-1 --model resnet --resnet_shortcut A --model_depth 18 --n_classes 400 --batch_size 24 --n_threads 4 --checkpoint 5 --manual_seed 2 --n_epochs 60 --test --test_subset val
+python main.py --root_path data/ --video_path frames/ --annotation_path ucfTrainTestlist/ucf101_01.json --result_path results/ --pretrain_path pretrained/resnet-18-kinetics.pth --model resnet --resnet_shortcut A --model_depth 18 --test --test_subset val
 ```
+A 3DResNet18 model, pretrained on Kinetics, is fine tuned at each active learning cycle and is used to select the most informative samples.
+
+
+
+## Citing IPM
+If you use IPM in your research, please use the following BibTeX entry.
+```
+@inproceedings{zaeemzadeh2019ipm,
+    title = {{Iterative Projection and Matching: Finding Structure-preserving Representatives and Its Application to Computer Vision}},
+    year = {2019},
+    booktitle = {Computer Vision and Pattern Recognition, 2019. CVPR 2019. IEEE Conference on},
+    author = {Zaeemzadeh, Alireza and Joneidi, Mohsen and Rahnavard, Nazanin and Shah, Mubarak}
+}
+```
+
+
+## Project Webpages
+[Presentation ](https://youtu.be/OFe5z5fMUGc)
+
+[UCF Center for Research in Computer Vision (CRCV)](https://www.crcv.ucf.edu/home/projects/iterative-projection-and-matching/)
+
+[UCF Communications and Wireless Networks Lab (CWNlab)](http://cwnlab.eecs.ucf.edu/ipm/) 
+
+[Standalone version of the data selection algorithm](https://github.com/zaeemzadeh/IPM)
