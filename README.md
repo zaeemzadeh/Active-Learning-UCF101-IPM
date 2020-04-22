@@ -60,6 +60,17 @@ python main.py --root_path data/ --video_path frames/ --annotation_path ucfTrain
 A 3DResNet18 model, pretrained on Kinetics, is fine tuned at each active learning cycle and is used to select the most informative samples.
 
 
+## Visualization
+t-SNE visualization of two classes of UCF-101 dataset and their representatives selected by 
+IPM. (left) Decision function learned by using all the
+data. The goal of selection is to preserve the structure with only a
+few representatives. (right) Decision function learned by using representatives
+selected by IPM.
+
+
+<img src="https://github.com/zaeemzadeh/Active-Learning-UCF101-IPM/blob/master/imgs/IPM_animated.gif" width="480">
+
+
 
 ## Citing IPM
 If you use IPM in your research, please use the following BibTeX entry.
