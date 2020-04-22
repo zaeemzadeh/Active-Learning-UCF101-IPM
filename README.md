@@ -68,7 +68,7 @@ few representatives. (right) Decision function learned by using representatives
 selected by IPM.
 
 
-<img src="https://github.com/zaeemzadeh/Active-Learning-UCF101-IPM/blob/master/imgs/IPM_animated.gif" width="480">
+<img src="https://github.com/zaeemzadeh/Active-Learning-UCF101-IPM/blob/master/IPM_animated.gif" width="480">
 
 
 
